@@ -11,6 +11,7 @@ from pygame.locals import (
     K_LEFT,
     K_RIGHT,
     K_ESCAPE,
+    K_SPACE,
     KEYDOWN,
     QUIT
 )
@@ -30,8 +31,10 @@ class Elsa(pygame.sprite.Sprite):
         self.image = pygame.image.load("sprites/testElsa.png")
         self.image.set_colorkey(white)     # Set our transparent color
         self.rect = self.image.get_rect()
+        self.lastShot = pygame.time.get_ticks()
 
     def update(self, pressedKeys):
+        # Move
         if pressedKeys[K_UP]:
             self.rect.move_ip(0, -5)
         if pressedKeys[K_DOWN]:
@@ -50,6 +53,32 @@ class Elsa(pygame.sprite.Sprite):
             self.rect.top = 0
         if self.rect.bottom > screenHeight:
             self.rect.bottom = screenHeight
+
+        # Shoot
+        cooldown = 500 # ms
+        if pressedKeys[pygame.K_SPACE] and pygame.time.get_ticks() - self.lastShot > cooldown: # and cooldown?
+            self.lastShot = pygame.time.get_ticks()
+            snowBall = PlayerSnowBall(self.rect.centerx, self.rect.centery)
+            playerSnowBalls.add(snowBall)
+
+class PlayerSnowBall(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super().__init__()
+        # To replace with a snowball image?
+        #pygame.draw.circle(self.image, self.color, (self.width // 2, self.height // 2), 5)
+        self.image = pygame.Surface([5, 5])
+        self.image.fill(white)
+        self.image.set_colorkey((0, 0, 0))
+
+        pygame.draw.circle(self.image, white, (3,3), 6)
+
+        self.rect = self.image.get_rect()
+        self.rect.center = [x, y]
+
+    def update(self):
+        self.rect.x += 3
+        if self.rect.x > screenWidth:
+            self.kill()
 
 class Opponent(pygame.sprite.Sprite):
     def __init__(self, x, y):
@@ -93,6 +122,8 @@ elsa.rect.y = 300
 opponents = pygame.sprite.Group()
 createOpponents(opponents)
 
+playerSnowBalls = pygame.sprite.Group()
+
 # Set the status of the main loop
 isGameRunning = True
 
@@ -123,6 +154,10 @@ while isGameRunning:
     ### Draw enemies and mobs ###
     opponents.update()
     opponents.draw(screen)
+
+    ### Draw snowballs ###
+    playerSnowBalls.update()
+    playerSnowBalls.draw(screen)
 
     ### Draw characters ###
     screen.blit(elsa.image, elsa.rect)
