@@ -66,8 +66,8 @@ class PlayerSnowBall(pygame.sprite.Sprite):
         super().__init__()
         # To replace with a snowball image?
         #pygame.draw.circle(self.image, self.color, (self.width // 2, self.height // 2), 5)
-        self.image = pygame.Surface([5, 5])
-        pygame.draw.circle(self.image, white, (3,3), 2)
+        self.image = pygame.Surface([7, 7])
+        pygame.draw.circle(self.image, white, (4,4), 3)
         self.image.set_colorkey((0, 0, 0))
 
         self.rect = self.image.get_rect()
