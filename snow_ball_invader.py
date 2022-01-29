@@ -96,6 +96,12 @@ class Opponent(pygame.sprite.Sprite):
             self.rect.x -= 5 # Should we make this smoother?
             self.move_counter *= self.move_direction
 
+    def checkCollisions(self):
+        for snowBall in playerSnowBalls:
+            if pygame.Rect.colliderect(self.rect, snowBall.rect):
+                snowBall.kill()
+                self.kill()
+
 def createOpponents(group):
     # Create a group of opponents... should be a function of the level?
     rows = 7
@@ -149,13 +155,15 @@ while isGameRunning:
     ### Draw background ###
     screen.fill((0,0,0))
 
-    ### Draw enemies and mobs ###
-    opponents.update()
-    opponents.draw(screen)
-
     ### Draw snowballs ###
     playerSnowBalls.update()
     playerSnowBalls.draw(screen)
+
+    ### Draw enemies and mobs ###
+    opponents.update()
+    opponents.draw(screen)
+    for opponent in opponents:
+        opponent.checkCollisions()
 
     ### Draw characters ###
     screen.blit(elsa.image, elsa.rect)
