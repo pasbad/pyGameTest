@@ -20,6 +20,20 @@ from pygame.locals import (
 pygame.init()
 
 white = (255, 255, 255)
+font = pygame.font.SysFont("Segoe UI", 35)
+debug = True
+
+screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+#screen = pygame.display.set_mode((800, 600))
+screenWidth = screen.get_width()
+screenHeight = screen.get_height()
+xSpeed = 5 #int(screenWidth*5/600)
+ySpeed = 5 #int(screenHeight*5/800)
+
+opponentHeight = 60
+opponentWidth = 60
+opponentRow = 12
+opponentCol = 5
 
 ### Characters ###
 class Elsa(pygame.sprite.Sprite):
@@ -36,9 +50,9 @@ class Elsa(pygame.sprite.Sprite):
     def update(self, pressedKeys):
         # Move
         if pressedKeys[K_UP]:
-            self.rect.move_ip(0, -5)
+            self.rect.move_ip(0, -ySpeed)
         if pressedKeys[K_DOWN]:
-            self.rect.move_ip(0, 5)
+            self.rect.move_ip(0, ySpeed)
         if pressedKeys[K_LEFT]:
             self.rect.move_ip(-5, 0)
         if pressedKeys[K_RIGHT]:
@@ -74,7 +88,7 @@ class PlayerSnowBall(pygame.sprite.Sprite):
         self.rect.center = [x, y]
 
     def update(self):
-        self.rect.x += 3
+        self.rect.x += xSpeed
         if self.rect.x > screenWidth:
             self.kill()
 
@@ -86,15 +100,16 @@ class Opponent(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.center = [x, y]
         self.move_counter = 0
-        self.move_direction = 1
+        self.move_direction = 3
 
     def update(self):
         self.rect.y += self.move_direction
-        self.move_counter += 1
-        if abs(self.move_counter) > 75: # This should be a parameter of the screen
-            self.move_direction *= -1
-            self.rect.x -= 5 # Should we make this smoother?
-            self.move_counter *= self.move_direction
+        self.move_counter += self.move_direction
+
+    def checkDirection(self):
+        reverse = self.rect.bottom >= screenHeight
+        reverse |= self.rect.top <= 0
+        return reverse
 
     def checkCollisions(self):
         for snowBall in playerSnowBalls:
@@ -104,18 +119,19 @@ class Opponent(pygame.sprite.Sprite):
 
 def createOpponents(group):
     # Create a group of opponents... should be a function of the level?
-    rows = 7
-    cols = 5
-    for row in range(rows):
-        for item in range(cols):
-            opponent = Opponent(screenWidth - 60 - item * 60, 120 + row * 60) # y -> row... start at screenHeight + opponent max height  + y moving path (75)
+    for row in range(opponentRow):
+        for item in range(opponentCol):
+            opponent = Opponent(screenWidth - 60 - item * opponentWidth, 30 + row * opponentHeight) # y -> row... start at screenHeight + opponent max height  + y moving path (75)
             group.add(opponent)
 
-
-# Define screen constants ... to tweak for full screen
-screenWidth = 800
-screenHeight = 600
-screen = pygame.display.set_mode((screenWidth, screenHeight))
+def displayDebug():
+    fps = str(int(clock.get_fps()))
+    w = "Width: " + str(screen.get_width())
+    h = "Height: " + str(screen.get_height())
+    textsurface = font.render(fps + " " + w + " " + h , False, white)  # "text", antialias, color
+    text_rect = textsurface.get_rect(topleft=(0, 0))
+    screen.blit(textsurface, text_rect)
+    return
 
 # Sprite list creation and player sprite creation
 sprites = pygame.sprite.Group()
@@ -155,6 +171,10 @@ while isGameRunning:
     ### Draw background ###
     screen.fill((0,0,0))
 
+    ### Debug constants ###
+    if debug:
+        displayDebug()
+
     ### Draw snowballs ###
     playerSnowBalls.update()
     playerSnowBalls.draw(screen)
@@ -162,12 +182,21 @@ while isGameRunning:
     ### Draw enemies and mobs ###
     opponents.update()
     opponents.draw(screen)
+    rev = False
     for opponent in opponents:
         opponent.checkCollisions()
+        rev |= opponent.checkDirection()
+
+    ### Direction change + advance ###
+    if rev:
+        for opponent in opponents:
+            opponent.move_direction *= -1
+            opponent.rect.x -= screenWidth / 100
 
     ### Draw characters ###
     screen.blit(elsa.image, elsa.rect)
 
+    ### Flip to screen and refresh rate ###
     pygame.display.flip()
     clock.tick(60)
 
