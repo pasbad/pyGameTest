@@ -19,17 +19,26 @@ from pygame.locals import (
 # Initialize pygame
 pygame.init()
 
+# Controller initialization
+joysticks = []
+for i in range(pygame.joystick.get_count()):
+    joysticks.append(pygame.joystick.Joystick(i))
+    joysticks[-1].init()
+
+# General variables
 white = (255, 255, 255)
 font = pygame.font.SysFont("Segoe UI", 35)
 debug = True
 
-screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
-#screen = pygame.display.set_mode((800, 600))
+# Screen management (and speed)
+#screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN) # for some reason, fullscreen cannot debug
+screen = pygame.display.set_mode((800, 600))
 screenWidth = screen.get_width()
 screenHeight = screen.get_height()
 xSpeed = 5 #int(screenWidth*5/600)
 ySpeed = 5 #int(screenHeight*5/800)
 
+# Opponents parameters
 opponentHeight = 60
 opponentWidth = 60
 opponentRow = 12
@@ -46,17 +55,51 @@ class Elsa(pygame.sprite.Sprite):
         self.image.set_colorkey(white)     # Set our transparent color
         self.rect = self.image.get_rect()
         self.lastShot = pygame.time.get_ticks()
+        self.movement = [0,0]
 
-    def update(self, pressedKeys):
-        # Move
+    def update(self, pressedKeys, events):
+
+        # Move with keyboard
         if pressedKeys[K_UP]:
-            self.rect.move_ip(0, -ySpeed)
-        if pressedKeys[K_DOWN]:
-            self.rect.move_ip(0, ySpeed)
+            self.movement[1] = -1
+        elif pressedKeys[K_DOWN]:
+            self.movement[1] = 1
+
         if pressedKeys[K_LEFT]:
-            self.rect.move_ip(-5, 0)
-        if pressedKeys[K_RIGHT]:
-            self.rect.move_ip(5, 0)
+            self.movement[0] = -1
+        elif pressedKeys[K_RIGHT]:
+            self.movement[0] = 1
+
+        for event in events:
+            # Move with gamepad
+            if event.type == pygame.JOYAXISMOTION and event.joy == 0:
+                print(event)
+                if event.axis == 0:
+                    if abs(event.value) > 0.5:
+                        if event.value > 0:
+                            self.movement[0] = 1
+                        else:
+                            self.movement[0] = -1
+                    else:
+                        self.movement[0] = 0
+                if event.axis == 4:
+                    if abs(event.value) > 0.5:
+                        if event.value < 0:
+                            self.movement[1] = -1
+                        else:
+                            self.movement[1] = 1
+                    else:
+                        self.movement[1] = 0
+
+            # Stop keyboard movement
+            if event.type == pygame.KEYUP:
+                if event.key == K_UP or event.key == K_DOWN:
+                    self.movement[1] = 0
+                if event.key == K_LEFT or event.key == K_RIGHT:
+                    self.movement[0] = 0
+
+        # Use movement decoded
+        self.rect.move_ip(xSpeed*self.movement[0], ySpeed*self.movement[1])
 
         # Keep Elsa on screen
         if self.rect.left < 0:
@@ -133,6 +176,30 @@ def displayDebug():
     screen.blit(textsurface, text_rect)
     return
 
+
+
+def displayButton(events):
+    string = ""
+
+    for event in events:
+        if event.type == pygame.JOYBUTTONDOWN or event.type == pygame.JOYAXISMOTION:
+            if event.joy == 0:
+                string += "Player 1 - "
+            else:
+                string += "Player 2 - "
+
+            if event.type == pygame.JOYBUTTONDOWN:
+                string += "Button Down"
+            else:
+                string += "Dpad"
+
+    if string:
+        textsurface = font.render(string, False, white)  # "text", antialias, color
+        text_rect = textsurface.get_rect(topleft=(0, 30))
+        screen.blit(textsurface, text_rect)
+
+    return
+
 # Sprite list creation and player sprite creation
 sprites = pygame.sprite.Group()
 elsa = Elsa()
@@ -150,7 +217,8 @@ isGameRunning = True
 while isGameRunning:
 
     # Look for events
-    for event in pygame.event.get():
+    events = pygame.event.get()
+    for event in events:
 
         # Close window
         if event.type == QUIT:
@@ -166,7 +234,7 @@ while isGameRunning:
 
     # Update Elsa based on pressed keys
     pressedKeys = pygame.key.get_pressed()
-    elsa.update(pressedKeys)
+    elsa.update(pressedKeys, events)
 
     ### Draw background ###
     screen.fill((0,0,0))
@@ -174,6 +242,7 @@ while isGameRunning:
     ### Debug constants ###
     if debug:
         displayDebug()
+        displayButton(events)
 
     ### Draw snowballs ###
     playerSnowBalls.update()
