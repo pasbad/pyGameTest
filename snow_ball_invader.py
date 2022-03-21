@@ -28,7 +28,7 @@ for i in range(pygame.joystick.get_count()):
 # General variables
 white = (255, 255, 255)
 font = pygame.font.SysFont("Segoe UI", 35)
-debug = True
+debug = False
 
 # Screen management (and speed)
 #screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN) # for some reason, fullscreen cannot debug
@@ -45,17 +45,15 @@ opponentRow = 12
 opponentCol = 5
 
 ### Characters ###
-class Elsa(pygame.sprite.Sprite):
-    """
-    This class represents the main player
-    """
-    def __init__(self):
+class Hero(pygame.sprite.Sprite):
+    def __init__(self, imageLocation, joystickId):
         super().__init__()
-        self.image = pygame.image.load("sprites/testElsa.png")
+        self.image = pygame.image.load(imageLocation) # pygame.image.load("sprites/testElsa.png")
         self.image.set_colorkey(white)     # Set our transparent color
         self.rect = self.image.get_rect()
         self.lastShot = pygame.time.get_ticks()
         self.movement = [0,0]
+        self.joystickId = joystickId
 
     def update(self, pressedKeys, events):
 
@@ -72,7 +70,7 @@ class Elsa(pygame.sprite.Sprite):
 
         for event in events:
             # Move with gamepad
-            if event.type == pygame.JOYAXISMOTION and event.joy == 0:
+            if event.type == pygame.JOYAXISMOTION and event.joy == self.joystickId:
                 print(event)
                 if event.axis == 0:
                     if abs(event.value) > 0.5:
@@ -101,7 +99,7 @@ class Elsa(pygame.sprite.Sprite):
         # Use movement decoded
         self.rect.move_ip(xSpeed*self.movement[0], ySpeed*self.movement[1])
 
-        # Keep Elsa on screen
+        # Keep hero on screen
         if self.rect.left < 0:
             self.rect.left = 0
         if self.rect.right > screenWidth:
@@ -117,6 +115,7 @@ class Elsa(pygame.sprite.Sprite):
             self.lastShot = pygame.time.get_ticks()
             snowBall = PlayerSnowBall(self.rect.centerx, self.rect.centery)
             playerSnowBalls.add(snowBall)
+
 
 class PlayerSnowBall(pygame.sprite.Sprite):
     def __init__(self, x, y):
@@ -176,8 +175,6 @@ def displayDebug():
     screen.blit(textsurface, text_rect)
     return
 
-
-
 def displayButton(events):
     string = ""
 
@@ -202,9 +199,17 @@ def displayButton(events):
 
 # Sprite list creation and player sprite creation
 sprites = pygame.sprite.Group()
-elsa = Elsa()
+
+elsa = Hero("sprites/testElsa.png", 0)
 elsa.rect.x = 200
 elsa.rect.y = 300
+sprites.add(elsa)
+
+anna = Hero("sprites/testAnna.png", 1)
+anna.rect.x = 250
+anna.rect.y = 350
+sprites.add(anna)
+
 
 opponents = pygame.sprite.Group()
 createOpponents(opponents)
@@ -232,9 +237,10 @@ while isGameRunning:
                 isGameRunning = False
                 break
 
-    # Update Elsa based on pressed keys
+    # Update heros based on pressed keys
     pressedKeys = pygame.key.get_pressed()
     elsa.update(pressedKeys, events)
+    anna.update(pressedKeys, events)
 
     ### Draw background ###
     screen.fill((0,0,0))
@@ -264,6 +270,7 @@ while isGameRunning:
 
     ### Draw characters ###
     screen.blit(elsa.image, elsa.rect)
+    screen.blit(anna.image, anna.rect)
 
     ### Flip to screen and refresh rate ###
     pygame.display.flip()
