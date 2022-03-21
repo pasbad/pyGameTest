@@ -31,8 +31,11 @@ font = pygame.font.SysFont("Segoe UI", 35)
 debug = False
 
 # Screen management (and speed)
-#screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN) # for some reason, fullscreen cannot debug
-screen = pygame.display.set_mode((800, 600))
+if debug:
+    screen = pygame.display.set_mode((800, 600))
+else:
+    screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN) # for some reason, fullscreen cannot debug
+
 screenWidth = screen.get_width()
 screenHeight = screen.get_height()
 xSpeed = 5 #int(screenWidth*5/600)
@@ -51,11 +54,15 @@ class Hero(pygame.sprite.Sprite):
         self.image = pygame.image.load(imageLocation) # pygame.image.load("sprites/testElsa.png")
         self.image.set_colorkey(white)     # Set our transparent color
         self.rect = self.image.get_rect()
+
         self.lastShot = pygame.time.get_ticks()
+        self.startPressed = False
         self.movement = [0,0]
         self.joystickId = joystickId
 
     def update(self, pressedKeys, events):
+        shoot = False
+        stopRequested = False
 
         # Move with keyboard
         if pressedKeys[K_UP]:
@@ -71,7 +78,8 @@ class Hero(pygame.sprite.Sprite):
         for event in events:
             # Move with gamepad
             if event.type == pygame.JOYAXISMOTION and event.joy == self.joystickId:
-                print(event)
+                if debug:
+                    print(event)
                 if event.axis == 0:
                     if abs(event.value) > 0.5:
                         if event.value > 0:
@@ -88,6 +96,20 @@ class Hero(pygame.sprite.Sprite):
                             self.movement[1] = 1
                     else:
                         self.movement[1] = 0
+
+            if event.type == pygame.JOYBUTTONDOWN and event.joy == self.joystickId:
+                if debug:
+                    print(event)
+                if event.button == 2:
+                    shoot = True
+                if event.button == 9:
+                    self.startPressed = True
+                if self.startPressed and event.button == 8:
+                    stopRequested = True
+
+            if event.type == pygame.JOYBUTTONUP and event.joy == self.joystickId:
+                if event.button == 9:
+                    self.startPressed = False
 
             # Stop keyboard movement
             if event.type == pygame.KEYUP:
@@ -111,11 +133,12 @@ class Hero(pygame.sprite.Sprite):
 
         # Shoot
         cooldown = 500 # ms
-        if pressedKeys[pygame.K_SPACE] and pygame.time.get_ticks() - self.lastShot > cooldown: # and cooldown?
+        if (pressedKeys[pygame.K_SPACE] or shoot) and pygame.time.get_ticks() - self.lastShot > cooldown: # and cooldown?
             self.lastShot = pygame.time.get_ticks()
             snowBall = PlayerSnowBall(self.rect.centerx, self.rect.centery)
             playerSnowBalls.add(snowBall)
 
+        return stopRequested
 
 class PlayerSnowBall(pygame.sprite.Sprite):
     def __init__(self, x, y):
@@ -210,7 +233,6 @@ anna.rect.x = 250
 anna.rect.y = 350
 sprites.add(anna)
 
-
 opponents = pygame.sprite.Group()
 createOpponents(opponents)
 
@@ -239,8 +261,13 @@ while isGameRunning:
 
     # Update heros based on pressed keys
     pressedKeys = pygame.key.get_pressed()
-    elsa.update(pressedKeys, events)
-    anna.update(pressedKeys, events)
+    stop = False
+    stop |= elsa.update(pressedKeys, events)
+    stop |= anna.update(pressedKeys, events)
+
+    if stop:
+        isGameRunning = False
+        break
 
     ### Draw background ###
     screen.fill((0,0,0))
