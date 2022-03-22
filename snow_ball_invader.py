@@ -28,7 +28,7 @@ for i in range(pygame.joystick.get_count()):
 # General variables
 white = (255, 255, 255)
 font = pygame.font.SysFont("Segoe UI", 35)
-debug = False
+debug = True
 
 # Screen management (and speed)
 if debug:
@@ -40,6 +40,7 @@ screenWidth = screen.get_width()
 screenHeight = screen.get_height()
 xSpeed = 5 #int(screenWidth*5/600)
 ySpeed = 5 #int(screenHeight*5/800)
+xGameOver = 0
 
 # Opponents parameters
 opponentHeight = 60
@@ -62,7 +63,6 @@ class Hero(pygame.sprite.Sprite):
 
     def update(self, pressedKeys, events):
         shoot = False
-        stopRequested = False
 
         # Move with keyboard
         if pressedKeys[K_UP]:
@@ -102,14 +102,6 @@ class Hero(pygame.sprite.Sprite):
                     print(event)
                 if event.button == 2:
                     shoot = True
-                if event.button == 9:
-                    self.startPressed = True
-                if self.startPressed and event.button == 8:
-                    stopRequested = True
-
-            if event.type == pygame.JOYBUTTONUP and event.joy == self.joystickId:
-                if event.button == 9:
-                    self.startPressed = False
 
             # Stop keyboard movement
             if event.type == pygame.KEYUP:
@@ -137,8 +129,6 @@ class Hero(pygame.sprite.Sprite):
             self.lastShot = pygame.time.get_ticks()
             snowBall = PlayerSnowBall(self.rect.centerx, self.rect.centery)
             playerSnowBalls.add(snowBall)
-
-        return stopRequested
 
 class PlayerSnowBall(pygame.sprite.Sprite):
     def __init__(self, x, y):
@@ -182,6 +172,11 @@ class Opponent(pygame.sprite.Sprite):
                 snowBall.kill()
                 self.kill()
 
+    def checkGameOver(self):
+        if self.rect.x <= xGameOver:
+            return True
+        return False
+
 def createOpponents(group):
     # Create a group of opponents... should be a function of the level?
     for row in range(opponentRow):
@@ -220,6 +215,76 @@ def displayButton(events):
 
     return
 
+def checkExit(joysticks_with_start_pressed, events):
+    for event in events:
+        if event.type == QUIT:
+            return True
+
+        # Key pressed
+        if event.type == KEYDOWN:
+            # Escape
+            if event.key == K_ESCAPE:
+                return True
+
+        if event.type == pygame.JOYBUTTONDOWN:
+            if debug:
+                print(event)
+            if event.button == 9:
+                joysticks_with_start_pressed.append(event.joy)
+            if joysticks_with_start_pressed.__contains__(event.joy) and event.button == 8:
+                return True
+
+        if event.type == pygame.JOYBUTTONUP and event.button == 9:
+            if joysticks_with_start_pressed.__contains__(event.joy):
+                joysticks_with_start_pressed.remove(event.joy)
+
+    return False
+
+
+def showStartScreen():
+    screen.fill((0, 0, 0)) # Background
+    text_surface = font.render("Appuie sur un bouton pour jouer!", True, white)
+    text_rect = text_surface.get_rect(center=(screenWidth/2,screenHeight/2))
+    screen.blit(text_surface, text_rect)
+    pygame.display.flip()
+    done = False
+    joysticks_with_start_pressed = []
+
+    while not done:
+        events = pygame.event.get()
+        exit = checkExit(joysticks_with_start_pressed, events)
+        if exit:
+            return True
+        for event in events:
+            if event.type == pygame.KEYDOWN:
+                done = True
+            if event.type == pygame.JOYBUTTONDOWN and event.button != 8 and event.button != 9:
+                done = True
+
+        clock.tick(60)
+
+def showGameOverScreen():
+    screen.fill((0, 0, 0)) # Background
+    text_surface = font.render("Appuie sur un bouton pour recommencer", True, white)
+    text_rect = text_surface.get_rect(center=(screenWidth/2,screenHeight/2))
+    screen.blit(text_surface, text_rect)
+    pygame.display.flip()
+    done = False
+    joysticks_with_start_pressed = []
+
+    while not done:
+        events = pygame.event.get()
+        exit = checkExit(joysticks_with_start_pressed, events)
+        if exit:
+            return True
+        for event in events:
+            if event.type == pygame.KEYDOWN:
+                done = True
+            if event.type == pygame.JOYBUTTONDOWN and event.button != 8 and event.button != 9:
+                done = True
+
+        clock.tick(60)
+
 # Sprite list creation and player sprite creation
 sprites = pygame.sprite.Group()
 
@@ -239,35 +304,21 @@ createOpponents(opponents)
 playerSnowBalls = pygame.sprite.Group()
 
 # Set the status of the main loop
-isGameRunning = True
-
+isGameRunning = not showStartScreen()
+isGameOverShown = False
+joysticks_with_start_pressed = []
 while isGameRunning:
+
+    stop = False
 
     # Look for events
     events = pygame.event.get()
-    for event in events:
-
-        # Close window
-        if event.type == QUIT:
-            isGameRunning = False
-            break
-
-        # Key pressed
-        if event.type == KEYDOWN:
-            # Escape
-            if event.key == K_ESCAPE:
-                isGameRunning = False
-                break
+    stop = checkExit(joysticks_with_start_pressed, events)
 
     # Update heros based on pressed keys
     pressedKeys = pygame.key.get_pressed()
-    stop = False
-    stop |= elsa.update(pressedKeys, events)
-    stop |= anna.update(pressedKeys, events)
-
-    if stop:
-        isGameRunning = False
-        break
+    elsa.update(pressedKeys, events)
+    anna.update(pressedKeys, events)
 
     ### Draw background ###
     screen.fill((0,0,0))
@@ -285,15 +336,37 @@ while isGameRunning:
     opponents.update()
     opponents.draw(screen)
     rev = False
+    isGameOver = False
     for opponent in opponents:
         opponent.checkCollisions()
         rev |= opponent.checkDirection()
+        isGameOver |= opponent.checkGameOver()
 
     ### Direction change + advance ###
     if rev:
         for opponent in opponents:
             opponent.move_direction *= -1
             opponent.rect.x -= screenWidth / 100
+
+    if isGameOver:
+        # Show game over screen
+        stop = showGameOverScreen()
+
+        # Reset opponents
+        for opponent in opponents:
+            opponent.kill()
+        createOpponents(opponents)
+
+        # Remove snowballs
+        for snowball in playerSnowBalls:
+            snowball.kill()
+
+        # reset score
+        # reset lives
+
+    if stop:
+        isGameRunning = False
+        break
 
     ### Draw characters ###
     screen.blit(elsa.image, elsa.rect)
@@ -303,3 +376,5 @@ while isGameRunning:
     pygame.display.flip()
     clock.tick(60)
 
+### Game Over ###
+#showGameOverScreen()
