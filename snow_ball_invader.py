@@ -28,7 +28,7 @@ for i in range(pygame.joystick.get_count()):
 # General variables
 white = (255, 255, 255)
 font = pygame.font.SysFont("Segoe UI", 35)
-debug = True
+debug = False
 
 # Screen management (and speed)
 if debug:
@@ -148,14 +148,31 @@ class PlayerSnowBall(pygame.sprite.Sprite):
             self.kill()
 
 class Opponent(pygame.sprite.Sprite):
-    def __init__(self, x, y, opponentLife, imageLocation):
+    def __init__(self, x, y, opponentLevel):
         super().__init__()
+
+        shootFreq = float("inf")
+
+        if opponentLevel < 1:
+            imageLocation = "sprites/testOlaf.png"
+        elif opponentLevel < 2:
+            imageLocation = "sprites/testAnna.png"
+        elif opponentLevel < 3:
+            imageLocation = "sprites/testElsa.png"
+        elif opponentLevel < 4:
+            imageLocation = "sprites/testAnna.png"
+            shootFreq = 1000
+        else:
+            imageLocation = "sprites/testElsa.png"
+            shootFreq = 500
+
         self.image = pygame.image.load(imageLocation)
         self.image.set_colorkey(white)  # Set our transparent color
         self.rect = self.image.get_rect()
         self.rect.center = [x, y]
 
-        self.lives = opponentLife
+        self.lives = min(opponentLevel+1, 3)
+        self.shootFreq = shootFreq
 
         self.move_counter = 0
         self.move_direction = 3
@@ -183,15 +200,11 @@ class Opponent(pygame.sprite.Sprite):
             return True
         return False
 
-class Olaf(Opponent):
-    def __init__(self, x, y):
-        super().__init__(x, y, 1, "sprites/testOlaf.png")
-
 def createOpponents(group):
     # Create a group of opponents... should be a function of the level?
     for row in range(opponentRow):
         for item in range(opponentCol):
-            opponent = Olaf(screenWidth - 60 - item * opponentWidth, 30 + row * opponentHeight) # y -> row... start at screenHeight + opponent max height  + y moving path (75)
+            opponent = Opponent(screenWidth - 60 - item * opponentWidth, 30 + row * opponentHeight, 0) # y -> row... start at screenHeight + opponent max height  + y moving path (75)
             group.add(opponent)
 
 class Life(pygame.sprite.Sprite):
