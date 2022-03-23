@@ -148,12 +148,15 @@ class PlayerSnowBall(pygame.sprite.Sprite):
             self.kill()
 
 class Opponent(pygame.sprite.Sprite):
-    def __init__(self, x, y):
+    def __init__(self, x, y, opponentLife, imageLocation):
         super().__init__()
-        self.image = pygame.image.load("sprites/testOlaf.png")
+        self.image = pygame.image.load(imageLocation)
         self.image.set_colorkey(white)  # Set our transparent color
         self.rect = self.image.get_rect()
         self.rect.center = [x, y]
+
+        self.lives = opponentLife
+
         self.move_counter = 0
         self.move_direction = 3
 
@@ -169,7 +172,10 @@ class Opponent(pygame.sprite.Sprite):
     def checkCollisions(self):
         for snowBall in playerSnowBalls:
             if pygame.Rect.colliderect(self.rect, snowBall.rect):
-                snowBall.kill()
+                if self.lives < 2:
+                    snowBall.kill()
+                else:
+                    self.lives -= 1
                 self.kill()
 
     def checkGameOver(self):
@@ -177,12 +183,37 @@ class Opponent(pygame.sprite.Sprite):
             return True
         return False
 
+class Olaf(Opponent):
+    def __init__(self, x, y):
+        super().__init__(x, y, 1, "sprites/testOlaf.png")
+
 def createOpponents(group):
     # Create a group of opponents... should be a function of the level?
     for row in range(opponentRow):
         for item in range(opponentCol):
-            opponent = Opponent(screenWidth - 60 - item * opponentWidth, 30 + row * opponentHeight) # y -> row... start at screenHeight + opponent max height  + y moving path (75)
+            opponent = Olaf(screenWidth - 60 - item * opponentWidth, 30 + row * opponentHeight) # y -> row... start at screenHeight + opponent max height  + y moving path (75)
             group.add(opponent)
+
+class Life(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super().__init__()
+        self.image = pygame.image.load("sprites/testCoeur.png")
+        self.image.set_colorkey(white)  # Set our transparent color
+        self.rect = self.image.get_rect()
+        self.rect.bottomleft = [x, y]
+
+def AddLives(group, count):
+    x_offset = 5
+    x_width = 30
+
+    for n in range(count):
+        if len(group) < 1:
+            life = Life(x_offset, screenHeight)
+            group.add(life)
+        else:
+            x = x_width*len(group) + x_offset*(len(group)+1)
+            life = Life(x, screenHeight)
+            group.add(life)
 
 def displayDebug():
     fps = str(int(clock.get_fps()))
@@ -239,7 +270,6 @@ def checkExit(joysticks_with_start_pressed, events):
                 joysticks_with_start_pressed.remove(event.joy)
 
     return False
-
 
 def showStartScreen():
     screen.fill((0, 0, 0)) # Background
@@ -301,15 +331,20 @@ sprites.add(anna)
 opponents = pygame.sprite.Group()
 createOpponents(opponents)
 
+lives = pygame.sprite.Group()
+AddLives(lives, 5)
+
 playerSnowBalls = pygame.sprite.Group()
 
 # Set the status of the main loop
 isGameRunning = not showStartScreen()
 isGameOverShown = False
 joysticks_with_start_pressed = []
+
 while isGameRunning:
 
     stop = False
+    isGameOver = False
 
     # Look for events
     events = pygame.event.get()
@@ -332,11 +367,14 @@ while isGameRunning:
     playerSnowBalls.update()
     playerSnowBalls.draw(screen)
 
+    ### Draw lives ###
+    lives.draw(screen)
+
     ### Draw enemies and mobs ###
     opponents.update()
     opponents.draw(screen)
     rev = False
-    isGameOver = False
+
     for opponent in opponents:
         opponent.checkCollisions()
         rev |= opponent.checkDirection()
@@ -349,6 +387,7 @@ while isGameRunning:
             opponent.rect.x -= screenWidth / 100
 
     if isGameOver:
+
         # Show game over screen
         stop = showGameOverScreen()
 
@@ -361,8 +400,11 @@ while isGameRunning:
         for snowball in playerSnowBalls:
             snowball.kill()
 
-        # reset score
-        # reset lives
+        # Reset score
+        # Reset lives
+        for life in lives:
+            life.kill()
+        AddLives(lives, 5)
 
     if stop:
         isGameRunning = False
@@ -375,6 +417,3 @@ while isGameRunning:
     ### Flip to screen and refresh rate ###
     pygame.display.flip()
     clock.tick(60)
-
-### Game Over ###
-#showGameOverScreen()
