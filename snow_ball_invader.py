@@ -35,7 +35,7 @@ font = pygame.font.SysFont("Segoe UI", 35)
 scoreFont = pygame.font.SysFont("Segoe UI", bottomOffset - 5)
 startingLevel = -1
 startingLives = 5
-debug = False
+debug = True
 
 # Screen management (and speed)
 if debug:
@@ -423,6 +423,10 @@ def showStartScreen(level, pts):
         clock.tick(60)
 
 def showGameOverScreen(level, pts):
+    # High scores
+    currentScore = (pts, level)
+    highScores = WriteHighScore(currentScore)
+
     # Background
     screen.fill((0, 0, 0))
 
@@ -458,12 +462,50 @@ def showGameOverScreen(level, pts):
             return True
         if pygame.time.get_ticks() - displayTime > displayCoolDown:
             for event in events:
-                if event.type == pygame.KEYDOWN: # and event.key != K_DOWN  and event.key != K_UP and event.key != K_LEFT and event.key != K_RIGHT and event.key != K_SPACE:
+                if event.type == pygame.KEYDOWN and event.key != K_ESCAPE:
                     done = True
-                if event.type == pygame.JOYBUTTONDOWN: # and event.button != 2 and event.button != 8 and event.button != 9:
+                if event.type == pygame.JOYBUTTONDOWN and event.button != 8 and event.button != 9:
                     done = True
 
         clock.tick(60)
+
+def WriteHighScore(scoreLevel):
+    highscores = []
+    try:
+        with open("scores.txt", 'x') as f:
+            highscores = []
+    except:
+        highscores = []
+        # file already created
+
+    with open("scores.txt", 'r+') as f:
+        try:
+            for line in f:
+                p = line.split()
+                highscores.append((p[0], p[1]))
+        except:
+            highscores = []
+
+        finally:
+            highscores.append(scoreLevel)
+            end = min(len(highscores), 5)
+            f.writelines(str(highscores[0:end]))
+
+
+    # with open("scores.txt", 'w') as f:
+    #     highscores = []
+    #     try:
+    #         for line in f:
+    #             score, level = line.strip().split(",")
+    #             highscores.append((score, level))
+    #     finally:
+    #         highscores.append(scoreLevel)
+    #         #highscores.sort(key=lambda x:x[0], reverse=True)
+    #
+    #     end = min(len(highscores), 5)
+    #     f.write(str(highscores[0:end]))
+
+    return highscores
 
 def CreateHeros(group):
     elsa = Hero("sprites/testElsa.png", 0)
