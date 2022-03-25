@@ -270,6 +270,9 @@ class Opponent(pygame.sprite.Sprite):
     def checkGameOver(self):
         if self.rect.x <= xGameOver:
             return True
+        for hero in heros:
+            if pygame.Rect.colliderect(self.rect, hero.rect):
+                return True
         return False
 
 def createOpponents(group, level, firstShotTime):
@@ -416,18 +419,20 @@ def showGameOverScreen():
 
         clock.tick(60)
 
+def CreateHeros(group):
+    elsa = Hero("sprites/testElsa.png", 0)
+    elsa.rect.x = 200
+    elsa.rect.y = 300
+    heros.add(elsa)
+
+    anna = Hero("sprites/testAnna.png", 1)
+    anna.rect.x = 250
+    anna.rect.y = 350
+    heros.add(anna)
+
 # Sprite list creation and player sprite creation
-sprites = pygame.sprite.Group()
-
-elsa = Hero("sprites/testElsa.png", 0)
-elsa.rect.x = 200
-elsa.rect.y = 300
-sprites.add(elsa)
-
-anna = Hero("sprites/testAnna.png", 1)
-anna.rect.x = 250
-anna.rect.y = 350
-sprites.add(anna)
+heros = pygame.sprite.Group()
+CreateHeros(heros)
 
 opponents = pygame.sprite.Group()
 currentLevel = startingLevel
@@ -464,8 +469,8 @@ while isGameRunning:
 
     # Update heros based on pressed keys
     pressedKeys = pygame.key.get_pressed()
-    elsa.update(pressedKeys, events)
-    anna.update(pressedKeys, events)
+    for hero in heros:
+        hero.update(pressedKeys, events)
 
     ### Draw background ###
     screen.fill((0,0,0))
@@ -509,11 +514,10 @@ while isGameRunning:
         # Reset level
         currentLevel = startingLevel
 
-        # Reset player collisions
-        elsa.lastCollision = pygame.time.get_ticks() - gracePeriod
-        elsa.ResetImage()
-        anna.lastCollision = pygame.time.get_ticks() - gracePeriod
-        anna.ResetImage()
+        # Reset players collisions
+        for hero in heros:
+            hero.kill()
+        CreateHeros(heros)
 
         # Reset opponents
         for opponent in opponents:
@@ -538,8 +542,8 @@ while isGameRunning:
         break
 
     ### Draw characters ###
-    screen.blit(elsa.image, elsa.rect)
-    screen.blit(anna.image, anna.rect)
+    for hero in heros:
+        screen.blit(hero.image, hero.rect)
 
     ### Flip to screen and refresh rate ###
     pygame.display.flip()
