@@ -31,7 +31,8 @@ for i in range(pygame.joystick.get_count()):
 white = (255, 255, 255)
 blue = (244, 147, 242)
 font = pygame.font.SysFont("Segoe UI", 35)
-startingLevel = -1
+startingLevel = 5 #-1
+startingLives = 1
 debug = False
 
 # Screen management (and speed)
@@ -44,7 +45,8 @@ screenWidth = screen.get_width()
 screenHeight = screen.get_height()
 xSpeed = 5 #int(screenWidth*5/600)
 ySpeed = 5 #int(screenHeight*5/800)
-xGameOver = 0
+gracePeriod = 3000 #ms
+blinkFreq = 200 # ms
 
 # Opponents parameters
 opponentHeight = 60
@@ -54,6 +56,7 @@ opponentCol = 5
 uniqueOpponents = 5
 opponentYspeed = 4 #3
 opponentXspeed = screenWidth/50
+xGameOver = 0
 
 def GenerateOpponentLevelArray(row, col, maxOpponentLevel, currentLevel):
     array = [[0 for _ in range(col)] for _ in range(row)]
@@ -76,11 +79,14 @@ def GenerateOpponentLevelArray(row, col, maxOpponentLevel, currentLevel):
 class Hero(pygame.sprite.Sprite):
     def __init__(self, imageLocation, joystickId):
         super().__init__()
-        self.image = pygame.image.load(imageLocation) # pygame.image.load("sprites/testElsa.png")
+        self.imageLocation = imageLocation
+        self.image = pygame.image.load(self.imageLocation) # pygame.image.load("sprites/testElsa.png")
         self.image.set_colorkey(white)     # Set our transparent color
         self.rect = self.image.get_rect()
 
         self.lastShot = pygame.time.get_ticks()
+        self.lastCollision = pygame.time.get_ticks() - gracePeriod
+
         self.startPressed = False
         self.movement = [0,0]
         self.joystickId = joystickId
@@ -155,17 +161,35 @@ class Hero(pygame.sprite.Sprite):
             playerSnowBalls.add(snowBall)
 
         # Check collisions
-        #if self.checkCollisions():
-            #self.image = None
+        # Collisions - snowballs
+        ticksFromLastCollision = pygame.time.get_ticks() - self.lastCollision
+        if ticksFromLastCollision > gracePeriod:
+            for snowBall in opponentSnowBalls:
+                if pygame.Rect.colliderect(self.rect, snowBall.rect):
+                    RemoveLife(lives)
+                    snowBall.kill()
+                    self.lastCollision = pygame.time.get_ticks()
+                    ticksFromLastCollision = 0
 
-    def checkCollisions(self):
-        for snowBall in opponentSnowBalls:
-            if pygame.Rect.colliderect(self.rect, snowBall.rect):
-                snowBall.kill()
-                return True
+        if ticksFromLastCollision < gracePeriod:
+            if round(ticksFromLastCollision/blinkFreq) % 2 == 0:
+                ChangeRed(self.image, 50)
+            else:
+                self.ResetImage()
 
-    #def changeImage(self):
+        # Collisions - opponents
 
+    def ResetImage(self):
+        self.image = pygame.image.load(self.imageLocation)
+
+def ChangeRed(surface, redAddition):
+    """Fill all pixels of the surface with color, preserve transparency."""
+    w, h = surface.get_size()
+    for x in range(w):
+        for y in range(h):
+            initialColor = surface.get_at((x, y))
+            initialColor[0] = max(min(redAddition+initialColor[0], 255), 0)
+            surface.set_at((x, y), pygame.Color(initialColor))
 
 class SnowBall(pygame.sprite.Sprite):
     def __init__(self, x, y, isPlayers):
@@ -240,6 +264,7 @@ class Opponent(pygame.sprite.Sprite):
                     self.kill()
                 else:
                     self.lives -= 1
+                    ChangeRed(self.image, 30)
                 snowBall.kill()
 
     def checkGameOver(self):
@@ -279,6 +304,12 @@ def AddLives(group, count):
             x = x_width*len(group) + x_offset*(len(group)+1)
             life = Life(x, screenHeight)
             group.add(life)
+
+def RemoveLife(group):
+    length = len(group)
+    if length > 0:
+        group.empty()
+        AddLives(group, length-1)
 
 def displayDebug():
     fps = str(int(clock.get_fps()))
@@ -402,7 +433,7 @@ opponents = pygame.sprite.Group()
 currentLevel = startingLevel
 
 lives = pygame.sprite.Group()
-AddLives(lives, 5)
+AddLives(lives, startingLives)
 
 playerSnowBalls = pygame.sprite.Group()
 opponentSnowBalls = pygame.sprite.Group()
@@ -452,6 +483,8 @@ while isGameRunning:
 
     ### Draw lives ###
     lives.draw(screen)
+    if len(lives) < 1:
+        isGameOver = True
 
     ### Draw enemies and mobs ###
     opponents.update()
@@ -470,12 +503,17 @@ while isGameRunning:
             opponent.rect.x -= opponentXspeed
 
     if isGameOver:
-
         # Show game over screen
         stop = showGameOverScreen()
 
         # Reset level
         currentLevel = startingLevel
+
+        # Reset player collisions
+        elsa.lastCollision = pygame.time.get_ticks() - gracePeriod
+        elsa.ResetImage()
+        anna.lastCollision = pygame.time.get_ticks() - gracePeriod
+        anna.ResetImage()
 
         # Reset opponents
         for opponent in opponents:
@@ -493,7 +531,7 @@ while isGameRunning:
         # Reset lives
         for life in lives:
             life.kill()
-        AddLives(lives, 5)
+        AddLives(lives, startingLives)
 
     if stop:
         isGameRunning = False
