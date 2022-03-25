@@ -28,21 +28,23 @@ for i in range(pygame.joystick.get_count()):
     joysticks[-1].init()
 
 # General variables
+bottomOffset = 30
 white = (255, 255, 255)
-blue = (244, 147, 242)
+pink = (244, 147, 242)
 font = pygame.font.SysFont("Segoe UI", 35)
-startingLevel = 5 #-1
-startingLives = 1
+scoreFont = pygame.font.SysFont("Segoe UI", bottomOffset - 5)
+startingLevel = -1
+startingLives = 5
 debug = False
 
 # Screen management (and speed)
 if debug:
-    screen = pygame.display.set_mode((800, 600))
+    screen = pygame.display.set_mode((1200, 800))
 else:
     screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN) # for some reason, fullscreen cannot debug
-
 screenWidth = screen.get_width()
 screenHeight = screen.get_height()
+
 xSpeed = 5 #int(screenWidth*5/600)
 ySpeed = 5 #int(screenHeight*5/800)
 gracePeriod = 3000 #ms
@@ -55,6 +57,8 @@ opponentRow = 12
 opponentCol = 5
 uniqueOpponents = 5
 opponentYspeed = 4 #3
+if debug:
+    opponentYspeed = 1
 opponentXspeed = screenWidth/50
 xGameOver = 0
 
@@ -199,7 +203,7 @@ class SnowBall(pygame.sprite.Sprite):
         color = white
         self.speed = xSpeed
         if not isPlayers:
-            color = blue
+            color = pink
             self.speed *= -1
         self.image = pygame.Surface([7, 7])
         pygame.draw.circle(self.image, color, (4,4), 3)
@@ -239,6 +243,7 @@ class Opponent(pygame.sprite.Sprite):
         self.rect.center = [x, y]
 
         self.lives = min(opponentLevel+1, 3)
+        self.value = opponentLevel+1
         self.shootFreq = shootFreq
 
         self.move_counter = 0
@@ -253,19 +258,21 @@ class Opponent(pygame.sprite.Sprite):
             opponentSnowBalls.add(snowBall)
 
     def checkDirection(self):
-        reverse = self.rect.bottom >= screenHeight
+        reverse = self.rect.bottom >= screenHeight - bottomOffset
         reverse |= self.rect.top <= 0
         return reverse
 
     def checkCollisions(self):
         for snowBall in playerSnowBalls:
             if pygame.Rect.colliderect(self.rect, snowBall.rect):
+                snowBall.kill()
                 if self.lives < 2:
                     self.kill()
+                    return self.value
                 else:
                     self.lives -= 1
                     ChangeRed(self.image, 30)
-                snowBall.kill()
+        return 0
 
     def checkGameOver(self):
         if self.rect.x <= xGameOver:
@@ -313,6 +320,12 @@ def RemoveLife(group):
     if length > 0:
         group.empty()
         AddLives(group, length-1)
+
+def displayScore():
+    textSurf = scoreFont.render(str(score), False,white)
+    textRect = textSurf.get_rect(bottomright=(screenWidth - 5, screenHeight))
+    screen.blit(textSurf, textRect)
+    return
 
 def displayDebug():
     fps = str(int(clock.get_fps()))
@@ -370,52 +383,85 @@ def checkExit(joysticks_with_start_pressed, events):
 
     return False
 
-def showStartScreen(level):
-    screen.fill((0, 0, 0)) # Background
-    text_surface = font.render("Niveau: " + str(level), True, white)
+def showStartScreen(level, pts):
+    # Background
+    screen.fill((0, 0, 0))
+
+    # Niveau + Pts
+    text_surface = font.render("Niveau: " + str(level) + " - Points: " + str(pts), True, white)
     text_rect = text_surface.get_rect(center=(screenWidth/2,screenHeight/2))
     screen.blit(text_surface, text_rect)
 
+    # Instruction
     text_surface2 = font.render("Appuie sur un bouton pour jouer", True, white)
     text_rect2 = text_surface2.get_rect(center=(screenWidth / 2, screenHeight / 2 + 50))
     screen.blit(text_surface2, text_rect2)
 
+    # Display
     pygame.display.flip()
     done = False
     joysticks_with_start_pressed = []
 
+    # Set cooldown
+    displayTime = pygame.time.get_ticks()
+    displayCoolDown = 750
+
+    # Listen to input
     while not done:
+
         events = pygame.event.get()
         exit = checkExit(joysticks_with_start_pressed, events)
         if exit:
             return True
-        for event in events:
-            if event.type == pygame.KEYDOWN and event.key != K_DOWN and event.key != K_UP and event.key != K_LEFT and event.key != K_RIGHT and event.key != K_SPACE:
-                done = True
-            if event.type == pygame.JOYBUTTONDOWN and event.button != 2 and event.button != 8 and event.button != 9:
-                done = True
+        if pygame.time.get_ticks() - displayTime > displayCoolDown:
+            for event in events:
+                if event.type == pygame.KEYDOWN: # and event.key != K_DOWN and event.key != K_UP and event.key != K_LEFT and event.key != K_RIGHT and event.key != K_SPACE:
+                    done = True
+                if event.type == pygame.JOYBUTTONDOWN: # and event.button != 2 and event.button != 8 and event.button != 9:
+                    done = True
 
         clock.tick(60)
 
-def showGameOverScreen():
-    screen.fill((0, 0, 0)) # Background
-    text_surface = font.render("Appuie sur un bouton pour recommencer", True, white)
-    text_rect = text_surface.get_rect(center=(screenWidth/2,screenHeight/2))
+def showGameOverScreen(level, pts):
+    # Background
+    screen.fill((0, 0, 0))
+
+    # Instruction
+    text_surface2 = font.render("Partie terminée!", True, white)
+    text_rect2 = text_surface2.get_rect(center=(screenWidth / 2, screenHeight / 2 - 50))
+    screen.blit(text_surface2, text_rect2)
+
+    # Niveau + Pts
+    text_surface = font.render("Niveau: " + str(level) + " - Points: " + str(pts), True, white)
+    text_rect = text_surface.get_rect(center=(screenWidth / 2, screenHeight / 2))
     screen.blit(text_surface, text_rect)
+
+    # Instruction
+    text_surface2 = font.render("Appuie sur un bouton pour recommencer", True, white)
+    text_rect2 = text_surface2.get_rect(center=(screenWidth / 2, screenHeight / 2 + 50))
+    screen.blit(text_surface2, text_rect2)
+
+    # Display
     pygame.display.flip()
     done = False
     joysticks_with_start_pressed = []
 
+    # Set cooldown
+    displayTime = pygame.time.get_ticks()
+    displayCoolDown = 750
+
+    # Listen to input
     while not done:
         events = pygame.event.get()
         exit = checkExit(joysticks_with_start_pressed, events)
         if exit:
             return True
-        for event in events:
-            if event.type == pygame.KEYDOWN and event.key != K_DOWN  and event.key != K_UP and event.key != K_LEFT and event.key != K_RIGHT and event.key != K_SPACE:
-                done = True
-            if event.type == pygame.JOYBUTTONDOWN and event.button != 2 and event.button != 8 and event.button != 9:
-                done = True
+        if pygame.time.get_ticks() - displayTime > displayCoolDown:
+            for event in events:
+                if event.type == pygame.KEYDOWN: # and event.key != K_DOWN  and event.key != K_UP and event.key != K_LEFT and event.key != K_RIGHT and event.key != K_SPACE:
+                    done = True
+                if event.type == pygame.JOYBUTTONDOWN: # and event.button != 2 and event.button != 8 and event.button != 9:
+                    done = True
 
         clock.tick(60)
 
@@ -440,6 +486,8 @@ currentLevel = startingLevel
 lives = pygame.sprite.Group()
 AddLives(lives, startingLives)
 
+score = 0
+
 playerSnowBalls = pygame.sprite.Group()
 opponentSnowBalls = pygame.sprite.Group()
 
@@ -457,7 +505,7 @@ while isGameRunning:
             snowball.kill()
         for snowball in opponentSnowBalls:
             snowball.kill()
-        isGameRunning = not showStartScreen(currentLevel)
+        isGameRunning = not showStartScreen(currentLevel, score)
         createOpponents(opponents, currentLevel, pygame.time.get_ticks())
 
     stop = False
@@ -465,7 +513,7 @@ while isGameRunning:
 
     # Look for events
     events = pygame.event.get()
-    stop = checkExit(joysticks_with_start_pressed, events)
+    isGameOver = checkExit(joysticks_with_start_pressed, events)
 
     # Update heros based on pressed keys
     pressedKeys = pygame.key.get_pressed()
@@ -479,6 +527,9 @@ while isGameRunning:
     if debug:
         displayDebug()
         displayButton(events)
+
+    ### Draw Score ###
+    displayScore()
 
     ### Draw snowballs ###
     playerSnowBalls.update()
@@ -497,7 +548,7 @@ while isGameRunning:
     rev = False
 
     for opponent in opponents:
-        opponent.checkCollisions()
+        score += opponent.checkCollisions()
         rev |= opponent.checkDirection()
         isGameOver |= opponent.checkGameOver()
 
@@ -509,7 +560,7 @@ while isGameRunning:
 
     if isGameOver:
         # Show game over screen
-        stop = showGameOverScreen()
+        stop = showGameOverScreen(currentLevel, score)
 
         # Reset level
         currentLevel = startingLevel
@@ -522,6 +573,7 @@ while isGameRunning:
         # Reset opponents
         for opponent in opponents:
             opponent.kill()
+        currentLevel = 0
         createOpponents(opponents, currentLevel, pygame.time.get_ticks())
 
         # Remove snowballs
@@ -531,6 +583,7 @@ while isGameRunning:
             snowball.kill()
 
         # Reset score
+        score = 0
 
         # Reset lives
         for life in lives:
