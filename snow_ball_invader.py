@@ -429,20 +429,29 @@ def showGameOverScreen(level, pts):
 
     # Background
     screen.fill((0, 0, 0))
+    score_increment = 50
+    score_origin = screenHeight/2 - score_increment*len(highScores)/2
+
 
     # Instruction
     text_surface2 = font.render("Partie terminée!", True, white)
-    text_rect2 = text_surface2.get_rect(center=(screenWidth / 2, screenHeight / 2 - 50))
+    text_rect2 = text_surface2.get_rect(center=(screenWidth / 2, score_origin - score_increment))
     screen.blit(text_surface2, text_rect2)
 
     # Niveau + Pts
-    text_surface = font.render("Niveau: " + str(level) + " - Points: " + str(pts), True, white)
-    text_rect = text_surface.get_rect(center=(screenWidth / 2, screenHeight / 2))
-    screen.blit(text_surface, text_rect)
+    for idx, score in enumerate(highScores):
+        string_pts = "Points: " + str(score[0])
+        string_level = "Niveau: " + str(score[1])
+        if idx == score_index:
+            text_surface = font.render('*' + string_pts.ljust(20, '-') + string_level + '*', True, white)
+        else:
+            text_surface = font.render(string_pts.ljust(20, '-') + string_level, True, white)
+        text_rect = text_surface.get_rect(center=(screenWidth / 2, score_origin + score_increment*idx))
+        screen.blit(text_surface, text_rect)
 
     # Instruction
     text_surface2 = font.render("Appuie sur un bouton pour recommencer", True, white)
-    text_rect2 = text_surface2.get_rect(center=(screenWidth / 2, screenHeight / 2 + 50))
+    text_rect2 = text_surface2.get_rect(center=(screenWidth / 2, score_origin + len(highScores)*score_increment))
     screen.blit(text_surface2, text_rect2)
 
     # Display
