@@ -30,6 +30,7 @@ for i in range(pygame.joystick.get_count()):
 # General variables
 bottomOffset = 30
 white = (255, 255, 255)
+purple = (136,112,185)
 pink = (244, 147, 242)
 font = pygame.font.SysFont("Segoe UI", 35)
 scoreFont = pygame.font.SysFont("Segoe UI", bottomOffset - 5)
@@ -49,6 +50,9 @@ xSpeed = 5 #int(screenWidth*5/600)
 ySpeed = 5 #int(screenHeight*5/800)
 gracePeriod = 3000 #ms
 blinkFreq = 200 # ms
+
+bg = pygame.image.load("snowflake.png")
+bg = pygame.transform.scale(bg, (screenWidth, screenHeight))
 
 # Opponents parameters
 opponentHeight = 60
@@ -570,7 +574,8 @@ while isGameRunning:
         hero.update(pressedKeys, events)
 
     ### Draw background ###
-    screen.fill((0,0,0))
+    #screen.fill((0,0,0))
+    screen.blit(bg, (0,0))
 
     ### Debug constants ###
     if debug:
