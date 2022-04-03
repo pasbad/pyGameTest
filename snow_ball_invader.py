@@ -425,7 +425,7 @@ def showStartScreen(level, pts):
 def showGameOverScreen(level, pts):
     # High scores
     currentScore = (pts, level)
-    highScores = WriteHighScore(currentScore)
+    score_index, highScores = WriteHighScore(currentScore)
 
     # Background
     screen.fill((0, 0, 0))
@@ -471,41 +471,39 @@ def showGameOverScreen(level, pts):
 
 def WriteHighScore(scoreLevel):
     highscores = []
+
+    # Create file if does not exist
     try:
         with open("scores.txt", 'x') as f:
             highscores = []
-    except:
-        highscores = []
+    except: pass
+        #highscores = []
         # file already created
 
-    with open("scores.txt", 'r+') as f:
+    # Read scores
+    with open("scores.txt", 'r') as f:
         try:
             for line in f:
-                p = line.split()
-                highscores.append((p[0], p[1]))
-        except:
-            highscores = []
+                p = line.strip('()\n').split(',')
+                highscores.append((int(p[0]), int(p[1])))
+        except: pass
 
-        finally:
-            highscores.append(scoreLevel)
-            end = min(len(highscores), 5)
-            f.writelines(str(highscores[0:end]))
+    # Add new highscore and sort
+    highscores.append(scoreLevel)
+    highscores = sorted(highscores, key=lambda tup: tup[0], reverse=True)
+    highscores = highscores[0:5]
 
+    # Write highscores
+    with open("scores.txt", 'w') as f:
+        for s in highscores:
+            f.write(str(s) + '\n')
 
-    # with open("scores.txt", 'w') as f:
-    #     highscores = []
-    #     try:
-    #         for line in f:
-    #             score, level = line.strip().split(",")
-    #             highscores.append((score, level))
-    #     finally:
-    #         highscores.append(scoreLevel)
-    #         #highscores.sort(key=lambda x:x[0], reverse=True)
-    #
-    #     end = min(len(highscores), 5)
-    #     f.write(str(highscores[0:end]))
+    if highscores.__contains__(scoreLevel):
+        index = highscores.index(scoreLevel)
+    else:
+        index = -1
 
-    return highscores
+    return index, highscores
 
 def CreateHeros(group):
     elsa = Hero("sprites/testElsa.png", 0)
