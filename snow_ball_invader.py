@@ -36,7 +36,7 @@ font = pygame.font.SysFont("Segoe UI", 35)
 scoreFont = pygame.font.SysFont("Segoe UI", bottomOffset - 5)
 startingLevel = -1
 startingLives = 5
-debug = True
+debug = False
 
 # Screen management (and speed)
 if debug:
@@ -46,6 +46,9 @@ else:
 screenWidth = screen.get_width()
 screenHeight = screen.get_height()
 
+print(screenWidth)
+print(screenHeight)
+
 xSpeed = 5 #int(screenWidth*5/600)
 ySpeed = 5 #int(screenHeight*5/800)
 gracePeriod = 3000 #ms
@@ -54,9 +57,14 @@ blinkFreq = 200 # ms
 bg = pygame.image.load("snowflake.png")
 bg = pygame.transform.scale(bg, (screenWidth, screenHeight))
 
+# Music and sound effects
+punch = pygame.mixer.Sound("PUNCH.mp3")
+pygame.mixer.music.load("endless-inspiration-monument-music-main-version-02-52-10150.mp3")
+pygame.mixer.music.play(-1)
+
 # Opponents parameters
-opponentHeight = 60
-opponentWidth = 60
+figureHeight = 60
+figureWidth = 60
 opponentRow = 12
 opponentCol = 5
 uniqueOpponents = 5
@@ -88,7 +96,8 @@ class Hero(pygame.sprite.Sprite):
     def __init__(self, imageLocation, joystickId):
         super().__init__()
         self.imageLocation = imageLocation
-        self.image = pygame.image.load(self.imageLocation) # pygame.image.load("sprites/testElsa.png")
+        self.image = pygame.transform.flip(pygame.image.load(self.imageLocation), True, False)
+
         self.image.set_colorkey(white)     # Set our transparent color
         self.rect = self.image.get_rect()
 
@@ -174,6 +183,7 @@ class Hero(pygame.sprite.Sprite):
         if ticksFromLastCollision > gracePeriod:
             for snowBall in opponentSnowBalls:
                 if pygame.Rect.colliderect(self.rect, snowBall.rect):
+                    pygame.mixer.Sound.play(punch)
                     RemoveLife(lives)
                     snowBall.kill()
                     self.lastCollision = pygame.time.get_ticks()
@@ -231,14 +241,14 @@ class Opponent(pygame.sprite.Sprite):
         if opponentLevel < 1:
             imageLocation = "sprites/testOlaf.png"
         elif opponentLevel < 2:
-            imageLocation = "sprites/testAnna.png"
+            imageLocation = "sprites/Sven_60.png"
         elif opponentLevel < 3:
-            imageLocation = "sprites/testElsa.png"
+            imageLocation = "sprites/Kristoff_60.png"
         elif opponentLevel < 4:
-            imageLocation = "sprites/testAnna.png"
+            imageLocation = "sprites/Anna_60.png"
             shootFreq = 15000
         else:
-            imageLocation = "sprites/testElsa.png"
+            imageLocation = "sprites/Elsa_60.png"
             shootFreq = 7000
 
         self.image = pygame.image.load(imageLocation)
@@ -269,6 +279,7 @@ class Opponent(pygame.sprite.Sprite):
     def checkCollisions(self):
         for snowBall in playerSnowBalls:
             if pygame.Rect.colliderect(self.rect, snowBall.rect):
+                #pygame.mixer.Sound.play(punch) # collision sound
                 snowBall.kill()
                 if self.lives < 2:
                     self.kill()
@@ -283,6 +294,7 @@ class Opponent(pygame.sprite.Sprite):
             return True
         for hero in heros:
             if pygame.Rect.colliderect(self.rect, hero.rect):
+                pygame.mixer.Sound.play(punch)
                 return True
         return False
 
@@ -295,7 +307,7 @@ def createOpponents(group, level, firstShotTime):
         for col in range(opponentCol):
             additionnalTime = random.uniform(0, 15000)
             opponentLevel = opponentLevels[row][col]
-            opponent = Opponent(screenWidth - 60 - col * opponentWidth, 30 + row * opponentHeight, opponentLevel, firstShotTime+additionnalTime) # y -> row... start at screenHeight + opponent max height  + y moving path (75)
+            opponent = Opponent(screenWidth - figureWidth - col * figureWidth, figureHeight/2 + row * figureHeight, opponentLevel, firstShotTime+additionnalTime) # y -> row... start at screenHeight + opponent max height  + y moving path (75)
             group.add(opponent)
 
 class Life(pygame.sprite.Sprite):
@@ -391,6 +403,9 @@ def showStartScreen(level, pts):
     # Background
     screen.fill((0, 0, 0))
 
+    # Pause music
+    #pygame.mixer.music.pause()
+
     # Niveau + Pts
     text_surface = font.render("Niveau: " + str(level) + " - Points: " + str(pts), True, white)
     text_rect = text_surface.get_rect(center=(screenWidth/2,screenHeight/2))
@@ -436,6 +451,8 @@ def showGameOverScreen(level, pts):
     score_increment = 50
     score_origin = screenHeight/2 - score_increment*len(highScores)/2
 
+    # Music
+    pygame.mixer.music.pause()
 
     # Instruction
     text_surface2 = font.render("Partie terminée!", True, white)
@@ -519,12 +536,12 @@ def WriteHighScore(scoreLevel):
     return index, highscores
 
 def CreateHeros(group):
-    elsa = Hero("sprites/testElsa.png", 0)
+    elsa = Hero("sprites/Elsa_60.png", 0)
     elsa.rect.x = 200
     elsa.rect.y = 300
     heros.add(elsa)
 
-    anna = Hero("sprites/testAnna.png", 1)
+    anna = Hero("sprites/Anna_60.png", 1)
     anna.rect.x = 250
     anna.rect.y = 350
     heros.add(anna)
@@ -560,6 +577,7 @@ while isGameRunning:
             snowball.kill()
         isGameRunning = not showStartScreen(currentLevel, score)
         createOpponents(opponents, currentLevel, pygame.time.get_ticks())
+        pygame.mixer.music.unpause()
 
     stop = False
     isGameOver = False
