@@ -96,7 +96,7 @@ class Hero(pygame.sprite.Sprite):
     def __init__(self, imageLocation, joystickId):
         super().__init__()
         self.imageLocation = imageLocation
-        self.image = pygame.transform.flip(pygame.image.load(self.imageLocation), True, False)
+        self.image = pygame.image.load(self.imageLocation)
 
         self.image.set_colorkey(white)     # Set our transparent color
         self.rect = self.image.get_rect()
@@ -174,7 +174,7 @@ class Hero(pygame.sprite.Sprite):
         cooldown = 500 # ms
         if (pressedKeys[pygame.K_SPACE] or shoot) and pygame.time.get_ticks() - self.lastShot > cooldown: # and cooldown?
             self.lastShot = pygame.time.get_ticks()
-            snowBall = SnowBall(self.rect.centerx, self.rect.centery, True)
+            snowBall = SnowBall(self.rect.centerx, self.rect.centery - 20, True)
             playerSnowBalls.add(snowBall)
 
         # Check collisions
@@ -499,6 +499,7 @@ def showGameOverScreen(level, pts):
 
         clock.tick(60)
 
+
 def WriteHighScore(scoreLevel):
     highscores = []
 
@@ -536,12 +537,12 @@ def WriteHighScore(scoreLevel):
     return index, highscores
 
 def CreateHeros(group):
-    elsa = Hero("sprites/Elsa_60.png", 0)
+    elsa = Hero("sprites/Vero_70.png", 0)
     elsa.rect.x = 200
     elsa.rect.y = 300
     heros.add(elsa)
 
-    anna = Hero("sprites/Anna_60.png", 1)
+    anna = Hero("sprites/Victo_80.png", 1)
     anna.rect.x = 250
     anna.rect.y = 350
     heros.add(anna)
@@ -633,6 +634,10 @@ while isGameRunning:
     if isGameOver:
         # Show game over screen
         stop = showGameOverScreen(currentLevel, score)
+
+        # Restart music
+        pygame.mixer.music.load("endless-inspiration-monument-music-main-version-02-52-10150.mp3")
+        pygame.mixer.music.play(-1)
 
         # Reset level
         currentLevel = startingLevel
